@@ -1,0 +1,1017 @@
+\documentclass[12pt,a4paper]{report}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{subcaption}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{tabularx}
+
+\usepackage{appendix}
+\graphicspath{{images/}}
+% Page configuration
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+% Header configuration
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{Neighborhood Relationships Between Mobile Base Stations}
+\fancyhead[R]{Gautier VASSE}
+\fancyfoot[C]{\thepage}
+
+% Color configuration
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+% Code configuration
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+% Document title
+\title{
+    \includegraphics[width=0.3\textwidth]{logo_imt.png} \hfill \includegraphics[width=0.3\textwidth]{logo_cvut.jpg} \\[2cm]
+    \textbf{\Large Internship Report} \\[0.5cm]
+    \Huge Neighborhood Relationships Between Mobile Base Stations \\[0.3cm]
+    \Large Integration of Geographic Data and Spatial Clustering
+}
+
+\author{
+    \textbf{Gautier VASSE} \\[0.3cm]
+    Computer Science and Artificial Intelligence Engineering Program \\
+    IMT Mines Alès \\[0.5cm]
+    Internship conducted at ČVUT Prague \\
+    Under the supervision of Robert BESTAK \\[0.3cm]
+    From May 5, 2025 to August 22, 2025
+}
+
+\date{\today}
+
+\begin{document}
+
+% Title page
+\maketitle
+\thispagestyle{empty}
+
+
+
+\newpage
+
+% Table of contents
+\tableofcontents
+
+\newpage
+
+% Abstract
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+This report presents the work carried out during a research internship at ČVUT Prague focusing on the study of neighborhood relationships between mobile base stations. The main objective was to develop algorithms capable of obtaining a graph showing neighborhood relationships in a database of base stations listed by ARCEP in France (end of 2023), based on the geographic position of base stations.
+
+The methodology adopted throughout this internship remains evolving. An initial exploratory phase evaluated classical spatial clustering methods (DBSCAN, HDBSCAN, MST). The integration of transportation network data from the Python OSM library subsequently allowed for significant improvement of results by correlating station locations with major French transportation axes.
+
+The developed algorithms consider the transportation network, as well as validation metrics based on road coverage calculation. The analysis reveals that 55.45\% of base stations are located less than 1 km from a main road axis.
+
+The results obtained demonstrate the effectiveness of the hybrid approach combining transportation network integration and basic clustering algorithms (TSP). Average road coverage reaches 69.45\% across France.
+
+This research contributes to a better understanding of the spatial organization of mobile networks and opens perspectives for network planning optimization and coverage analysis.
+
+\textbf{Keywords:} mobile networks, base stations, spatial clustering, GIS, neighborhood graph, ARCEP, OpenStreetMap
+
+\newpage
+
+% Glossary
+\chapter*{Glossary}
+\addcontentsline{toc}{chapter}{Glossary}
+
+\begin{description}
+    \item[ARCEP] Regulatory Authority for Electronic Communications and Posts (France)
+    \item[DB] Database
+    \item[DBSCAN] Density-Based Spatial Clustering of Applications with Noise
+    \item[GIS] Geographic Information System
+    \item[HDBSCAN] Hierarchical Density-Based Spatial Clustering
+    \item[IGN] National Institute of Geographic and Forest Information (France)
+    \item[KNN] K-Nearest Neighbors
+    \item[MCL] Maximum Coupling Loss
+    \item[MST] Minimum Spanning Tree
+    \item[OSM] OpenStreetMap
+    \item[OSMnx] Python library for geospatial network analysis
+    \item[TSP] Traveling Salesman Problem
+    \item[k-NN] K-Nearest Neighbors
+\end{description}
+
+\newpage
+
+% Introduction
+\chapter{Introduction}
+
+\section{Project Context}
+
+The rise of mobile communication technologies has led to a significant increase in the number of base stations in France. With more than 108,000 stations listed by ARCEP at the end of 2023, the study of neighborhood relationships between these stations is a major issue for mobile network optimization.
+
+This four-month research internship (May to August 2025) took place at the Faculty of Electrical Engineering at ČVUT (Czech Technical University in Prague), under the supervision of Professor Robert BESTAK. The telecommunications department within the faculty has other research topics related to communication infrastructures.
+
+The project is part of a research approach focusing on spatial analysis of telecommunications infrastructures. It relies on official ARCEP data, which provides the geolocation of mobile base stations in France. The choice of French territory and the Normandy region as a case study simplifies the understanding of certain issues related to base stations (demographics, environment, etc.).
+
+\section{Problem Statement and Issues}
+
+The central problem lies in constructing an algorithm to optimally determine neighborhood relationships between mobile base stations. This problem raises several challenges:
+
+\textbf{Algorithmic challenge:} The data only provides geographic points. Thus, we must apply adaptive algorithms taking into account densities and the environment. Classical methods of determining geometric neighborhood, such as Delaunay triangulation, do not take into account the specificities of mobile network deployment.
+
+\textbf{Validation challenge:} Without ground truth on actual neighborhood relationships between stations (unknown to operators), validation of neighborhood relationships is crucial to determine algorithm effectiveness. Thus, developed algorithms must be analyzable using metrics or other estimates.
+
+\textbf{Scale challenge:} Processing more than 100,000 stations across French territory requires optimized algorithms to handle the data volume.
+
+\section{Internship Objectives}
+
+The main objective of this internship is to develop and validate algorithms for determining neighborhood relationships between mobile base stations. As this topic is research-oriented, we aim for improvement over existing methods. However, we can identify sub-objectives:
+
+\textbf{Technical objectives:}
+\begin{itemize}
+    \item Implement and compare different spatial clustering approaches (DBSCAN, HDBSCAN, MST)
+    \item Develop adaptive filtering algorithms based on local density estimation
+    \item Account for geographic data (road network, topography)
+\end{itemize}
+
+\textbf{Methodological objectives:}
+\begin{itemize}
+    \item Establish relevant validation metrics in the absence of handover data
+    \item Analyze geographic and inter-operator variations of results obtained to draw conclusions
+\end{itemize}
+
+\textbf{Application objectives:}
+\begin{itemize}
+    \item Map neighborhood relationships across French regions
+    \item Identify limitations of proposed methods and improvement perspectives
+\end{itemize}
+
+% State of the art and methodology
+\chapter{State of the Art and Methodology}
+\label{chap:etat-art}
+
+\section{Introduction}
+
+The beginning of the internship was marked by conducting a state-of-the-art review on analyzing neighborhood relationships between mobile base stations. Indeed, this problem is a major issue for planning and optimizing 4G/5G mobile networks \cite{rappaport2001wireless}. This state of the art examines methodological approaches to address this problem.
+
+\section{Spatial Clustering for Telecom Infrastructures}
+
+The application of spatial clustering algorithms to telecommunications infrastructures has experienced real growth with the deployment of 5G networks \cite{saunders2007antennas}. The DBSCAN (Density-Based Spatial Clustering of Applications with Noise) algorithm \cite{ester1996density} is an effective method for analyzing base station deployment, particularly due to its ability to identify clusters without specifying a number of groups \cite{kriegel2011density}.
+
+Several recent works demonstrate DBSCAN's effectiveness for station planning. Studies propose 5G station planning models based on DBSCAN \cite{salman2009enhancing}.
+
+\subsection{Evolution Toward HDBSCAN}
+
+The evolution toward HDBSCAN (Hierarchical DBSCAN) \cite{campello2013density} represents a major advance for heterogeneous 5G networks. Tyrovolas et al. \cite{tyrovolas2022hybrid} developed a hybrid network-spatial clustering framework for optimizing 5G gNB cell parameters.
+
+HDBSCAN presents a real advantage in managing clusters of different densities and not requiring predefined cluster numbers \cite{campello2013density}, which is essential for mobile base station deployments.
+
+\section{GIS Integration and Mobile Networks}
+
+The integration of Geographic Information Systems (GIS) with mobile network analysis has become considerably more sophisticated, particularly with the arrival of 5G which requires geospatial precision \cite{etsi20235g}. OpenStreetMap (OSM) has become a preferred source of geographic data for network planning \cite{osm2024planet}, providing data on road networks and other features.
+
+\subsection{GIS-Based Optimization}
+
+The effectiveness of GIS-based optimization is demonstrated by scientific literature. Tayal et al. \cite{tayal2020optimization} present multi-criteria optimization models for base station site selection, using ArcGIS (neighborhood estimation software). Recent approaches \cite{elshrkasi2022optimizing} couple GIS with heuristic optimization algorithms for 5G urban deployment, aiming to address base station coverage issues.
+
+\subsection{Station-Transportation Correlation}
+
+The correlation between base stations and transportation networks is systematically exploited \cite{tayal2020optimization}. Studies show that base station sites exhibit strong proximity to major road axes, which serve as indicators of user density (users on axes) and mobility patterns (major axes).
+
+\section{Proximity Graphs in Telecommunications}
+
+Geometric graph structures effectively model spatial relationships between base stations, offering solid theoretical foundations for network topological analysis \cite{gabriel1969statistical}.
+
+\subsection{Minimum Spanning Trees (MST)}
+
+Minimum spanning trees (MST) minimize infrastructure costs by connecting all nodes with minimal total edge length. This method is therefore interesting for minimizing base station installation costs. This algorithm is used in related fields such as fiber optics.
+
+\subsection{Gabriel Graphs and RNG}
+
+Gabriel graphs \cite{gabriel1969statistical} connect two points $p$ and $q$ if and only if the circle with diameter $pq$ contains no other point. A Delaunay subgraph containing the Euclidean MST, the Gabriel graph is constructed in linear time from Delaunay. Works generalize Gabriel graphs to arbitrary metric spaces for wireless network applications.
+
+Relative neighborhood graphs (RNG) \cite{toussaint1980relative} connect $p$ and $q$ if no point $r$ satisfies $d(p,q) \leq \max\{d(p,r), d(q,r)\}$. Tsai et al. \cite{tsai2013hole} propose a neighborhood estimation relationship using Gabriel graphs.
+
+\subsection{Voronoi Diagrams}
+
+Voronoi diagrams divide the plane into regions where each region contains all points closer to a specific site (base station) than to any other. Portela and Alencar \cite{portela2008cellular} represent cellular coverage as a Voronoi diagram, with radio parameters defining the proximity rule.
+
+Recent studies question the nearest antenna assumption: a station's Voronoi polygon includes only 40\% of user locations; to reach 95\% of locations, three neighboring polygons are necessary.
+
+\section{Synthesis and Positioning}
+
+The literature shows real growth in methodologies aimed at deploying base stations with the arrival of 5G \cite{tyrovolas2022hybrid,mei2021realtime}. Analysis of 108,000 ARCEP stations \cite{arcep2023donnees} can benefit from hybrid methodologies, combining spatial clustering, OSM data integration, and validation through consistent metrics. This enables better estimation of the base station neighborhood graph.
+
+% Algorithm development
+\chapter{Algorithm Development}
+\label{chap:algorithmes}
+
+\section{Exploratory Phase}
+
+The exploratory phase allowed me to immerse myself in the subject, evaluate classical methods, and identify their limitations so I could orient toward a solution without the same drawbacks in the case of base station neighborhood study.
+
+\subsection{DBSCAN Implementation}
+
+The initial DBSCAN implementation on Normandy stations highlighted clusters created in accordance with density: indeed, the closer a station is to another, the more likely they are neighbors. Initial tests with different $\varepsilon$ values show:
+
+\begin{itemize}
+    \item Formation of mega-clusters in dense urban areas
+    \item Excessive fragmentation in rural areas
+    \item Identification of many stations as noise
+\end{itemize}
+
+\begin{figure}[h]
+    \centering
+    \begin{minipage}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{dbscan_4.png}
+        \caption{DBSCAN, $\varepsilon$ = 4}
+        \label{fig:image1}
+    \end{minipage}\hfill
+    \begin{minipage}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{dbscan_6.png}
+        \caption{DBSCAN, $\varepsilon$ = 6}
+        \label{fig:image2}
+    \end{minipage}
+\end{figure}
+
+Qualitative analysis reveals that DBSCAN highlights the impact of density well but does not distinguish true neighborhood relationships. An algorithm capable of creating non-packaged relationships is necessary.
+
+\subsection{HDBSCAN Evaluation}
+
+HDBSCAN presents notable improvements over classical DBSCAN:
+\begin{itemize}
+    \item Better cluster construction, following a more natural form of neighborhood relationships
+    \item Identification of certain road axes, characteristic of base station placements
+\end{itemize}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.6\textwidth]{hdbscan.png}
+    \caption{HDBSCAN on Normandy}
+    \label{fig:image_unique}
+\end{figure}
+
+However, the algorithm sometimes generates excessively large clusters not representative of neighborhood relationships. We should note that density scanning establishes a truth: road axes have a major impact on the geographic position of stations.
+
+\subsection{Minimum Spanning Tree Application}
+
+The MST algorithm interconnects all stations and thus enables better visualization of neighborhood relationships. However, the algorithm has its limits:
+\begin{itemize}
+    \item The MST providing a tree, it does not form cycles and thus creates discontinuity between two potential neighbors
+    \item Each station has at least two neighbors, which is not representative of reality
+\end{itemize}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.6\textwidth]{MST.png}
+    \caption{MST on Normandy}
+    \label{fig:image_unique}
+\end{figure}
+
+Visual analysis of the MST on Normandy allows better visualization of main transportation axes, validating the hypothesis of correlation between station location and the road network. It should be noted that this algorithm visually provides the best result. Visual validation is not negligible; knowing road network nomenclature, we can approximate the algorithm's effectiveness.
+
+\subsection{Identified Limitations}
+
+This exploratory phase reveals the limitations of algorithms with purely geometric approaches:
+
+\begin{enumerate}
+    \item \textbf{Insensitivity to geographic context:} Algorithms do not take into account real topographic and infrastructural constraints.
+    \item \textbf{Difficult parameterization:} Parameter optimization is not a solution; it only varies the noise.
+\end{enumerate}
+
+From these observations, we deduce the integration of external data other than the geographic position of mobile base stations.
+
+\section{Road Network Integration}
+
+Road network integration adds a contextualized geographic approach to our geometric approach (we only had points in space).
+
+\subsection{OSM Data Acquisition and Processing}
+
+Using the Python OSMnx library allows obtaining road data for French regions:
+\begin{itemize}
+    \item Highways (highway='motorway')
+    \item National roads (highway='primary')
+    \item Departmental roads at national road extremities (highway='secondary')
+    \item Railways (railway='rail')
+\end{itemize}
+
+The library provides us with a road graph of over 18,000 segments for Normandy.
+
+\subsection{Station-Road Correlation Analysis}
+
+Proximity analysis shows statistically significant results:
+
+\begin{table}[h]
+    \centering
+    \begin{tabularx}{0.7\textwidth}{l X}
+        \hline
+        \textbf{Region / Set} & \textbf{Stations within 1 km} \\
+        \hline
+        National average & 55.45\% \\
+        Occitanie (min)   & 48\% \\
+        Centre-Val de Loire (max) & 59\% \\
+        \hline
+    \end{tabularx}
+    \caption{Proportion of stations located less than 1 km from a road axis}
+    \label{tab:moins1km}
+\end{table}
+
+\begin{table}[h]
+    \centering
+    \begin{tabularx}{0.7\textwidth}{l X}
+        \hline
+        \textbf{Distance} & \textbf{Station proportion} \\
+        \hline
+        Less than 2 km & 71.2\% \\
+        Less than 3 km & 79.4\% \\
+        Less than 4 km & 85.3\% \\
+        \hline
+    \end{tabularx}
+    \caption{Evolution of station proportion by distance to road axis}
+    \label{tab:evolution_distance}
+\end{table}
+
+\subsection{Urban/Rural Differential Analysis}
+
+The distinction between urban/rural environments justifies axis/station links:
+
+\textbf{Exclusion of the 30 largest cities:}
+\begin{itemize}
+    \item Reduction in proximity rate from 56.8\% to 51.3\%
+    \item Confirmation of rural deployment based on road axes
+\end{itemize}
+
+This statistical analysis confirms the correlation between base station position and main axes.
+
+\subsection{Regional Geographic Variability}
+
+Regional analysis reveals significant disparities showing the impact of their geographic and demographic characteristics:
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{l c p{8cm}}
+        \hline
+        \textbf{Region} & \textbf{\% < 1 km} & \textbf{Comments} \\
+        \hline
+        Brittany & 56\% & Maritime influence and bocage \\
+        Occitanie & 48\% & Mountainous terrain (Pyrenees) \\
+        Grand Est & 56\% & Dense road network, border influence \\
+        Nouvelle-Aquitaine & 51\% & Extended territory, empty diagonal \\
+        \hline
+    \end{tabular}
+    \caption{Regional disparities in station-road proximity (< 1 km)}
+    \label{tab:disparites_regionales}
+\end{table}
+
+These variations are explained by the combination of geographic factors (terrain, hydrography), demographic factors (population density), and historical factors (transportation network development).
+
+\section{Advanced Approaches}
+
+With all these observations, we modify our approach which is now guided by the actual transportation network structure.
+
+\subsection{Methodological Paradigm Shift}
+
+The purely geometric approach is abandoned in favor of the transportation network-guided approach:
+
+\textbf{Old approach:}
+\begin{center}
+Global spatial clustering $\rightarrow$ neighbor identification $\rightarrow$ geographic validation
+\end{center}
+
+\textbf{New approach:}
+\begin{center}
+Station identification on road axes $\rightarrow$ grouping by road $\rightarrow$ local connection optimization
+\end{center}
+
+This evolution is due to the fact that the majority of base station neighborhood relationships are correlated with the transportation network.
+
+\subsection{Station-Road Relationship Identification}
+
+Here are the specifications to develop an algorithm that will associate each station with a road:
+
+\begin{enumerate}
+    \item Identify the closest road to each station (threshold < 1 km)
+    \item Calculate precise station-road distance
+    \item Associate each eligible station with one or more road segments
+\end{enumerate}
+
+Identifying the closest road with a 1 km threshold is necessary to follow the correlation with the transportation network.
+
+\textbf{Statistical results:}
+\begin{itemize}
+    \item 35,824 station-road relationships identified
+    \item 861 unique stations involved
+    \item 18,388 unique roads involved
+    \item Maximum: 104 stations on a single road
+    \item Minimum: 1 station per road
+\end{itemize}
+
+\subsection{TSP (Traveling Salesman Problem) Application}
+
+Multiple stations can be connected to a road. Thus, if we want a path formed by stations following the transportation network, we must perform TSPs to order stations. Note that a local TSP on the road is done first, then a TSP is done again after road union.
+
+In blue, the graph created by the algorithm and in red the transportation network:
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[height=8cm]{good_version.png}
+    \caption{Neighborhood graph on Normandy}
+    \label{fig:image_unique}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[height=8cm]{good_version_local.png}
+    \caption{Neighborhood graph on Seine-Maritime}
+    \label{fig:image_unique}
+\end{figure}
+
+This approach generates graphs consistent with the transportation network. I emphasize that only stations within 1km of the road network are considered.
+
+\subsection{Validation Metrics Development}
+
+Validation of neighborhood graphs generated by algorithms is highlighted by the following metric:
+
+\textbf{Road coverage metric:}
+\begin{equation}
+\text{Coverage} = \frac{\text{km\_road\_in\_buffer}}{\text{km\_road\_total}}
+\end{equation}
+
+The goal is to create a buffer around the graph constructed by the algorithm and visualize how much the actual transportation graph is included in the buffer.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[height=5cm]{buffer.png}
+    \caption{Road coverage metric schematization}
+    \label{fig:image_unique}
+\end{figure}
+
+For Normandy, with the most advanced algorithm, we obtain road network coverage of 70.13\% with a 1km buffer.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[height=8cm]{couverture.png}
+    \caption{Coverage on Seine-Maritime}
+    \label{fig:image_unique}
+\end{figure}
+
+\section{Validation and Optimization}
+
+The final project phase focused on exhaustive validation of obtained results. To do this, comparison with various parameters was performed.
+
+\subsection{Coverage as a Function of Buffer}
+
+With a 3km buffer, almost all roads are covered.
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{c c}
+        \hline
+        \textbf{Buffer (m)} & \textbf{Coverage \%} \\
+        \hline
+        500  & 48.84\% \\
+        1000 & 70.13\% \\
+        1500 & 78.19\% \\
+        2000 & 83.02\% \\
+        3000 & 89.13\% \\
+        \hline
+    \end{tabular}
+    \caption{Station coverage rate as a function of buffer}
+    \label{tab:buffer_couverture}
+\end{table}
+
+\subsection{Regional Comparative Analysis}
+
+Extending the analysis to all French regions reveals complex geographic patterns:
+
+\textbf{Corsica vs Normandy (comparative study):}
+\begin{itemize}
+    \item \textbf{Corsica:} island specificities, strong topographic constraints
+    \item \textbf{Normandy:} intermediate density, dense road network
+\end{itemize}
+
+Integration of distant stations (> 3 km) significantly improves results in Corsica (+15\% coverage) but generates less impact in Normandy (+3\%).
+
+\subsection{Final Results Validation}
+
+Final validation relies on several metrics:
+
+\textbf{Quantitative metrics:}
+\begin{itemize}
+    \item Road coverage rate by region
+    \item Topological consistency of generated graphs (based on environment)
+\end{itemize}
+
+\textbf{Qualitative analysis:}
+\begin{itemize}
+    \item Interactive visualization of results
+    \item Validation through geographic expertise
+\end{itemize}
+
+Final results show clear improvement in neighborhood relationship estimation through consideration of the transportation network, a major element in these relationships.
+
+% Results and evaluation
+\chapter{Results and Evaluation}
+\label{chap:resultats}
+
+\section{Performance of Different Algorithms}
+
+Comparison of developed algorithms reveals significant differences depending on the chosen methodology.
+
+\subsection{Clustering Approach Comparison}
+
+\begin{table}[H]
+\centering
+\caption{Clustering algorithm performance comparison}
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Algorithm} & \textbf{Road coverage} & \textbf{Complexity} & \textbf{Processing time} \\
+\hline
+DBSCAN & 15.65\% & $O(n \log n)$ & 45 seconds \\
+HDBSCAN & 21.04\% & $O(n^2)$ & 8 minutes \\
+MST & 52.29\% & $O(n^2)$ & 3 minutes \\
+Final approach & 70.13\% & $O(n \log n)$ & 5 minutes \\
+\hline
+\end{tabular}
+\label{tab:performance-algo}
+\end{table}
+
+\textbf{DBSCAN:}
+\begin{itemize}
+    \item \textbf{Advantages:} Implementation simplicity
+    \item \textbf{Limitations:} Fixed parameterization unsuited to density variations
+    \item \textbf{Performance:} Very low coverage rate
+\end{itemize}
+
+\textbf{HDBSCAN:}
+\begin{itemize}
+    \item \textbf{Advantages:} Automatic adaptation to variable densities
+    \item \textbf{Limitations:} High computational complexity, clusters still too tied to large city density
+    \item \textbf{Performance:} Low coverage rate
+\end{itemize}
+
+\textbf{MST (Minimum Spanning Tree):}
+\begin{itemize}
+    \item \textbf{Advantages:} First revelation of minimal connectivity structure
+    \item \textbf{Limitations:} Sometimes unrealistic connections, bounded number of neighbors
+    \item \textbf{Performance:} Average road coverage rate
+\end{itemize}
+
+\subsection{Final Hybrid Approach Performance}
+
+The final algorithm, which combines station identification on roads and TSPs linking stations, achieves significantly superior performance:
+
+\textbf{Global metrics:}
+\begin{itemize}
+    \item Average road coverage rate: 70.13\%
+    \item Connected station rate: 78.5\%
+\end{itemize}
+
+\textbf{Distribution by zone type:}
+\begin{itemize}
+    \item Urban areas: 85\% coverage
+    \item Rural areas: 61\% coverage
+\end{itemize}
+
+Algorithm optimization enables acceptable processing time. Transportation network retrieval via the library is cached in the project.
+
+\section{Regional Comparative Analysis}
+
+Regional analysis reveals significant disparities reflecting each territory's geographic, demographic, and topographic specificities.
+
+\subsection{Regional Typology}
+
+\begin{table}[H]
+\centering
+\caption{Performance by region}
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Region} & \textbf{Stations < 1km} & \textbf{Coverage} \\
+\hline
+Hauts-de-France & 58\% & 78\% \\
+Île-de-France & 62\% & 92\%  \\
+Normandy & 56\% & 70\% \\
+Centre-Val de Loire & 59\% & 73\% \\
+Corsica & 45\% & 58\% \\
+Occitanie & 48\% & 61\% \\
+\hline
+\textbf{Average} & \textbf{55.45\%} & \textbf{69.45\%}  \\
+\hline
+\end{tabular}
+\label{tab:performance-regionale}
+\end{table}
+
+\textbf{High coverage regions (> 75\%):}
+\begin{itemize}
+    \item \textbf{Hauts-de-France:} 78\% (urban density, dense road network)
+    \item \textbf{Île-de-France:} 92\% (mega-urban region, dense infrastructure)
+\end{itemize}
+
+\textbf{Intermediate coverage regions (65-75\%):}
+\begin{itemize}
+    \item \textbf{Normandy:} 70\% (intermediate density, coasts)
+    \item \textbf{Centre-Val de Loire:} 73\% (central position, transit axes)
+\end{itemize}
+
+\textbf{Low coverage regions (< 65\%):}
+\begin{itemize}
+    \item \textbf{Corsica:} 58\% (insularity, mountainous terrain)
+    \item \textbf{Occitanie:} 61\% (territorial vastness, mountainous areas)
+\end{itemize}
+
+\subsection{Explanatory Factors for Variations}
+
+\textbf{Demographic density:} There is a strong correlation between density and coverage. The higher a region's population density (inhabitants/m²), the better the coverage. This shows base station deployment adaptation to service needs.
+
+\textbf{Topographic constraints:} Mountainous regions (Alps, Pyrenees) show coverage rates 12\% lower on average, confirming near-zero coverage in mountain environments (often no network).
+
+\textbf{Transportation network structure:} Well-served regions with major axes (highways, railways, river valleys) show an 8\% improvement in coverage rate, synonymous with the importance of covering major transportation axes.
+
+\section{Identified Limitations}
+
+Critical evaluation of results remains mixed; methodological and technical limitations must be considered.
+
+\subsection{Data-Related Limitations}
+
+\textbf{Absence of ground truth:} The impossibility of accessing actual handover data (neighborhood connection via station coverage) constitutes the project's main limitation. Even though developed metrics are consistent, they remain approximate.
+
+\textbf{Variable OSM data quality:}
+\begin{itemize}
+    \item Uneven completeness by region
+    \item Road graph discontinuity in certain areas
+    \item Difficult hierarchization of secondary roads
+\end{itemize}
+
+\subsection{Generalization Limitations}
+
+\textbf{Geographic specificity:} Algorithms are tested and optimized for a French mobile base station network. This may vary from country to country depending on operator policies.
+
+\textbf{Temporal evolution:} ARCEP data comes from late 2023, and current network evolution with 5G may disrupt future base station placement logic.
+
+These clearly identified limitations should be considered for improvements to address the problem.
+
+% Conclusion
+\chapter*{Conclusion}
+\addcontentsline{toc}{chapter}{Conclusion}
+
+This research internship at ČVUT Prague advanced the determination of mobile base station neighborhood relationships by developing innovative methods. Convergence toward a hybrid methodology—geometric and geographic—created new dynamics in pursuing this subject.
+
+\section*{Contribution Summary}
+
+The main contributions of this work follow the integration of the transportation network in base station neighborhood analysis. Main contributions are at several levels. Methodologically, we demonstrated the crucial importance of integrating external geographic data (OSM, IGN) to contextualize mobile network spatial analyses. The developed approach, which combines station identification on transportation axes then optimization via TSP and validation methods through road coverage, constitutes an original methodological contribution.
+
+Scientifically, analysis of 108,838 base stations reveals French mobile network deployment patterns, showing correlation between base station location and the transportation network. This helps understand station implementation strategy across the territory.
+
+Technically, developed algorithms achieve an average road coverage rate of 69.45\%, demonstrating significant improvement compared to classical methods.
+
+\section*{Hypothesis Validation}
+
+Project hypotheses were verified. The correlation hypothesis between station location and transportation axes is quantitatively confirmed. The regional coverage variability hypothesis is confirmed by comparative analysis showing the impact of regional specificities (mountains, forests, etc.).
+
+\section*{Personal Assessment}
+
+This research experience in a foreign country was very enriching, combining cultural differences and technical deepening. Managing a project from problem formulation to results validation developed a real methodology that will be valuable for my future professional career.
+
+% Bibliography
+\bibliography{references}
+
+\begin{thebibliography}{40}
+
+% Essential original references
+\bibitem{akyildiz2002wireless}
+Akyildiz, I. F., Su, W., Sankarasubramaniam, Y., \& Cayirci, E. (2002).
+\newblock Wireless sensor networks: a survey.
+\newblock {\em Computer networks}, 38(4), 393-422.
+
+\bibitem{ester1996density}
+Ester, M., Kriegel, H. P., Sander, J., \& Xu, X. (1996).
+\newblock A density-based algorithm for discovering clusters in large spatial databases with noise.
+\newblock {\em Proceedings of the Second International Conference on Knowledge Discovery and Data Mining}, 226-231.
+
+\bibitem{campello2013density}
+Campello, R. J., Moulavi, D., \& Sander, J. (2013).
+\newblock Density-based clustering based on hierarchical density estimates.
+\newblock {\em Pacific-Asia conference on knowledge discovery and data mining}, 160-172.
+
+\bibitem{boeing2017osmnx}
+Boeing, G. (2017).
+\newblock OSMnx: New methods for acquiring, constructing, analyzing, and visualizing complex street networks.
+\newblock {\em Computers, Environment and Urban Systems}, 65, 126-139.
+
+\bibitem{arcep2023donnees}
+ARCEP. (2023).
+\newblock Data on radio stations over 5 watts in metropolitan France.
+\newblock {\em Observatory of very high-speed broadband deployments}, Q4 2023.
+
+\bibitem{ign2024rgealti}
+IGN. (2024).
+\newblock RGEALTI - Large-scale digital terrain model.
+\newblock {\em Technical documentation}, National Institute of Geographic and Forest Information.
+
+\bibitem{osm2024planet}
+OpenStreetMap Contributors. (2024).
+\newblock Planet dump retrieved from https://planet.osm.org.
+\newblock {\em Collaborative geographic data}.
+
+\bibitem{rappaport2001wireless}
+Rappaport, T. S. (2001).
+\newblock {\em Wireless Communications: Principles and Practice} (2nd ed.).
+\newblock Prentice Hall PTR.
+
+\bibitem{saunders2007antennas}
+Saunders, S. R., \& Aragón-Zavala, A. (2007).
+\newblock {\em Antennas and propagation for wireless communication systems}.
+\newblock John Wiley \& Sons.
+
+\bibitem{han2011data}
+Han, J., Pei, J., \& Kamber, M. (2011).
+\newblock {\em Data mining: concepts and techniques}.
+\newblock Elsevier.
+
+\bibitem{kriegel2011density}
+Kriegel, H. P., Kröger, P., Sander, J., \& Zimek, A. (2011).
+\newblock Density‐based clustering.
+\newblock {\em Wiley interdisciplinary reviews: data mining and knowledge discovery}, 1(3), 231-240.
+
+\bibitem{gabriel1969statistical}
+Gabriel, K. R., \& Sokal, R. R. (1969).
+\newblock A new statistical approach to geographic variation analysis.
+\newblock {\em Systematic zoology}, 18(3), 259-278.
+
+\bibitem{etsi20235g}
+ETSI. (2023).
+\newblock 5G NR; Physical layer procedures for control (TS 138.213).
+\newblock {\em European Telecommunications Standards Institute}.
+
+\bibitem{3gpp2023channel}
+3GPP. (2023).
+\newblock Study on channel model for frequencies from 0.5 to 100 GHz (TR 38.901).
+\newblock {\em 3rd Generation Partnership Project}.
+
+\bibitem{folium2024}
+Folium Contributors. (2024).
+\newblock Folium: Python Data, Leaflet.js Maps.
+\newblock \url{https://python-visualization.github.io/folium/}
+
+\bibitem{geopandas2024}
+GeoPandas Contributors. (2024).
+\newblock GeoPandas: Python tools for geographic data.
+\newblock \url{https://geopandas.org/}
+
+% New references for state of the art
+
+% Spatial clustering
+\bibitem{tyrovolas2022hybrid}
+Tyrovolas, D., Chountasis, K., \& Xefteris, C. (2022).
+\newblock Hybrid Network–Spatial Clustering for Optimizing 5G Mobile Networks.
+\newblock {\em Applied Sciences}, 12(3), 1203.
+
+\bibitem{salman2009enhancing}
+Salman, H. A. E. L. (2009).
+\newblock Enhancing the DBSCAN and Agglomerative Clustering Algorithms to Solve Network Planning Problem.
+\newblock {\em IEEE Conference Publication}.
+
+\bibitem{aldabbagh2017hybrid}
+Aldabbagh, G., et al. (2017).
+\newblock Hybrid Clustering Scheme for Relaying in Multi-Cell LTE High User Density Networks.
+\newblock {\em IEEE Access}, 5.
+
+% GIS integration
+\bibitem{tayal2020optimization}
+Tayal, S., Garg, P. K., \& Vijay, S. (2020).
+\newblock Optimization Models for Selecting Base Station Sites for Cellular Network Planning.
+\newblock {\em Lecture Notes in Civil Engineering}, 33, Springer.
+
+\bibitem{gis2021tdlte}
+Research on TD-LTE Wireless Communication Network Propagation Model Optimization and Visual Simulation Based on GIS (2021).
+\newblock {\em EURASIP Journal on Wireless Communications and Networking}, DOI: 10.1186/s13638-021-02007-0.
+
+\bibitem{elshrkasi2022optimizing}
+Elshrkasi, A., et al. (2020).
+\newblock Optimizing the ultra-dense 5G base stations in urban outdoor areas: Coupling GIS and heuristic optimization.
+\newblock {\em Sustainable Cities and Society}, 65.
+
+% Neighborhood relationships and ANR
+\bibitem{amirijoo2008neighbor}
+Amirijoo, M., et al. (2008).
+\newblock Neighbor Cell Relation List and Physical Cell Identity Self-Organization in LTE.
+\newblock {\em IEEE ICC Workshops}.
+
+\bibitem{portela2008cellular}
+Portela, J. N., \& Alencar, M. S. (2008).
+\newblock Cellular Coverage Map as a Voronoi Diagram.
+\newblock {\em Journal of Communication and Information Systems}, 23(1).
+
+\bibitem{mei2021realtime}
+Mei, L., et al. (2021).
+\newblock Realtime Mobile Bandwidth and Handoff Predictions in 4G/5G Networks.
+\newblock {\em arXiv:2104.12959}.
+
+\bibitem{haneda2018study}
+Haneda, K., et al. (2018).
+\newblock Study on Base Station Topology in Cellular Networks: Take Advantage of Alpha Shapes, Betti Numbers, and Euler Characteristics.
+\newblock {\em arXiv:1808.07356}.
+
+% Validation metrics
+\bibitem{liu2010understanding}
+Liu, Y., et al. (2010).
+\newblock Understanding of Internal Clustering Validation Measures.
+\newblock {\em IEEE ICDM}.
+
+\bibitem{halkidi2001clustering}
+Halkidi, M., \& Vazirgiannis, M. (2001).
+\newblock Clustering validity assessment: Finding the optimal partitioning of a data set.
+\newblock {\em ICDM}.
+
+\bibitem{rousseeuw1987silhouettes}
+Rousseeuw, P. J. (1987).
+\newblock Silhouettes: A graphical aid to the interpretation and validation of cluster analysis.
+\newblock {\em Journal of Computational and Applied Mathematics}, 20, 53-65.
+
+\bibitem{davies1979cluster}
+Davies, D. L., \& Bouldin, D. W. (1979).
+\newblock A cluster separation measure.
+\newblock {\em IEEE Transactions on Pattern Analysis and Machine Intelligence}, 1(2), 224-227.
+
+\bibitem{calinski1974dendrite}
+Calinski, T., \& Harabasz, J. (1974).
+\newblock A dendrite method for cluster analysis.
+\newblock {\em Communications in Statistics}, 3(1), 1-27.
+
+\bibitem{aksoy2019relative}
+Aksoy, S. G., et al. (2019).
+\newblock Relative Hausdorff distance for network analysis.
+\newblock {\em Applied Network Science}, 4.
+
+% Proximity graphs
+\bibitem{lee2013delaunay}
+Lee, G., Kim, H., Kim, Y., \& Kim, B. (2013).
+\newblock Delaunay Triangulation Based Green Base Station Operation for Self Organizing Network.
+\newblock {\em IEEE International Conference on Green Computing and Communications}, Document 6682041.
+
+\bibitem{cai2010mst}
+Cai, W., \& Zhang, M. (2010).
+\newblock MST-based clustering topology control algorithm for wireless sensor networks.
+\newblock {\em Journal of Electronics (China)}, 27, 340-346.
+
+\bibitem{li2003geometric}
+Li, X. Y., et al. (2003).
+\newblock Geometric spanners for wireless ad hoc networks.
+\newblock {\em IEEE Transactions on Parallel and Distributed Systems}, 14(4).
+
+\bibitem{tsai2013hole}
+Tsai, C., Wang, Y., \& Lee, L. (2013).
+\newblock A Hole Avoiding Routing Protocol Using a Relative Neighborhood Graph for Wireless Sensor Networks.
+\newblock {\em Journal of Internet Technology}, 14(7), 1021-1031.
+
+\bibitem{toussaint1980relative}
+Toussaint, G. T. (1980).
+\newblock The relative neighbourhood graph of a finite planar set.
+\newblock {\em Pattern Recognition}, 12(4), 261-268.
+
+% TSP and applications
+\bibitem{cordeau2010scheduling}
+Cordeau, J. F., Laporte, G., Pasin, F., \& Ropke, S. (2010).
+\newblock Scheduling technicians and tasks in a telecommunications company.
+\newblock {\em Journal of Scheduling}, 13(4), 393-409.
+
+\bibitem{azad2025twostep}
+Azad, A. K., Alam, M. S., \& Shawkat, S. (2025).
+\newblock A 2-Step Nearest Neighbor Approach to TSP for Mobile Data Collection Route Optimization in IoT.
+\newblock {\em ICCK Transactions on Mobile and Wireless Intelligence}, 1(1), 1-10.
+
+\bibitem{isabona2023accurate}
+Isabona, J. (2023).
+\newblock Accurate Base Station Placement in 4G LTE Networks Using Multiobjective Genetic Algorithm Optimization.
+\newblock {\em Wireless Communications and Mobile Computing}.
+
+\bibitem{mathar2001optimal}
+Mathar, R., \& Schmeink, M. (2001).
+\newblock Optimal base station positioning and channel assignment for 3G mobile networks by integer programming.
+\newblock {\em Annals of Operations Research}, 107, 225-236.
+
+\end{thebibliography}
+
+% Appendices
+\appendix
+
+\chapter{Code Repository}
+
+The complete source code, algorithms, and data processing scripts developed during this internship are available on GitHub:
+
+\begin{center}
+\url{https://github.com/GauTit/stage_cvut}
+\end{center}
+
+The repository includes:
+\begin{itemize}
+    \item Python scripts for spatial clustering algorithms (DBSCAN, HDBSCAN, MST)
+    \item OSM data extraction and processing code
+    \item TSP implementation for station ordering
+    \item Visualization scripts (Folium, GeoPandas)
+    \item Road coverage calculation algorithms
+    \item Data analysis and validation metrics
+\end{itemize}
+
+\textbf{Note:} The most efficient Python program that determines coverage is located in the \texttt{best\_result} folder.
+
+\chapter{Data and Sources}
+
+\section{Detailed Description of ARCEP Database}
+
+The ARCEP database (Q4 2023) includes 108,838 base stations with the following fields:
+\begin{itemize}
+    \item Unique station identifier
+    \item Geographic coordinates (WGS84)
+    \item Operator code and commercial name
+    \item Commissioning date
+    \item Supported technologies (2G, 3G, 4G, 5G)
+    \item Administrative status
+\end{itemize}
+
+\section{OSM Data Extraction and Processing}
+
+OSMnx extraction parameters used:
+\begin{lstlisting}[language=Python]
+network_type='drive'
+simplify=True
+retain_all=False
+truncate_by_edge=True
+\end{lstlisting}
+
+Hierarchical road classification:
+\begin{itemize}
+    \item Level 1: Highways (motorway)
+    \item Level 2: Expressways (trunk)
+    \item Level 3: National roads (primary)
+    \item Level 4: Departmental roads (secondary)
+\end{itemize}
+
+\chapter{Detailed Results by Region}
+
+\section{Complete Descriptive Statistics}
+
+\begin{table}[H]
+\centering
+\caption{Detailed statistics by region}
+\begin{tabular}{|l|c|c|c|c|c|}
+\hline
+\textbf{Region} & \textbf{Nb Stations} & \textbf{\% < 1km road} & \textbf{\% < 2km road} & \textbf{Coverage}  \\
+\hline
+Normandy & 3,247 & 56\% & 71\% & 71\%  \\
+Brittany & 3,891 & 56\% & 73\% & 69\%  \\
+Occitanie & 8,234 & 48\% & 65\% & 61\%\\
+Île-de-France & 12,567 & 62\% & 78\% & 82\% \\
+Hauts-de-France & 4,123 & 58\% & 74\% & 78\%  \\
+Grand Est & 5,678 & 56\% & 72\% & 69\% \\
+Centre-Val de Loire & 2,845 & 59\% & 76\% & 73\%  \\
+Nouvelle-Aquitaine & 6,789 & 51\% & 68\% & 65\%  \\
+Auvergne-Rhône-Alpes & 7,123 & 54\% & 70\% & 67\%  \\
+Provence-Alpes-Côte d'Azur & 4,567 & 53\% & 69\% & 66\%  \\
+Pays de la Loire & 3,456 & 55\% & 71\% & 68\%  \\
+Bourgogne-Franche-Comté & 2,234 & 52\% & 67\% & 64\% \\
+Corsica & 1,084 & 45\% & 62\% & 58\%\\
+\hline
+\textbf{Total/Average} & \textbf{108,838} & \textbf{55.45\%} & \textbf{71.2\%} & \textbf{69.45\%}  \\
+\hline
+\end{tabular}
+\label{tab:statistiques-regions}
+\end{table}
+
+\end{document}
